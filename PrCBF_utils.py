@@ -1,6 +1,7 @@
 import numpy as np
 import math
 from cvxopt import matrix, solvers
+from scipy.special import comb
 
 ### Utiliy Functions
 
@@ -50,7 +51,7 @@ def trap_cdf_inv(a, c, delta, sigma):
         b1=delta
         return b2, b1, sigma
     
-    O_vec = [-(A+C) -(A-C) (A-C) (A+C)] # vector of vertices on the trap distribution pdf
+    O_vec = np.array([-(A+C), -(A-C), (A-C), (A+C)]) # vector of vertices on the trap distribution pdf
     h = 1/(2*A) # height of the trap distribution
     area_seq = np.array([1/2*2*C*h, 2*(A-C)*h, 1/2*2*C*h])
     
@@ -95,7 +96,7 @@ def trap_cdf_inv(a, c, delta, sigma):
 
 def find_inv_cdf(b2, b1, dir):
     if ((b2<0) and (b1>0)) or ((b2>0)and(b1<0)):
-        print(f'distance between robots on {dir} smaller than error bound!')
+        #print(f'distance between robots on {dir} smaller than error bound!')
         b = 0
     elif ((b1<0)and(b2<b1))or((b2<0)and(b2>b1)):
         b = b1
@@ -103,7 +104,7 @@ def find_inv_cdf(b2, b1, dir):
         b = b2
     else:
         b = b1
-        print(f'no uncertainty or sigma = 0.5 on {dir}')
+        #print(f'no uncertainty or sigma = 0.5 on {dir}')
 
     return b
 
@@ -161,7 +162,7 @@ class PrCBF_dec():
         
         if(N < 2):
             dx = dxi
-            return dx, None
+            return dx
         
         if (len(self.XRandSpan)==1) and (self.XRandSpan==0):
             self.XRandSpan = np.zeros(2,N)
@@ -175,7 +176,7 @@ class PrCBF_dec():
         
         #Generate constraints for barrier certificates based on the size of
         #the safety radius
-        num_constraints = 2*math.comb(N, 2)
+        num_constraints = 2*comb(N, 2, exact=True)
         
         #introduce recursive policy with "stop action"
         
@@ -183,28 +184,28 @@ class PrCBF_dec():
         loop_flag = True # initialize
         while loop_flag:
             loop_flag = False
-            A = np.zeros(num_constraints, 3*N)
-            b = np.zeros(num_constraints, 1)
-            count = 1
+            A = np.zeros((num_constraints, 3*N))
+            b = np.zeros((num_constraints, 1))
+            count = 0
         
-            for i in range((start_i+1),(N-len(self.obs_robot_idx_set))):
+            for i in range(start_i,(N-len(self.obs_robot_idx_set))):
                 for j in range((i+1), N):
                     
-                    max_dvij_x = np.linalg.norm(self.URandSpan(1,i)+self.URandSpan(1,j))
-                    max_dvij_y = np.linalg.norm(self.URandSpan(2,i)+self.URandSpan(2,j))
-                    max_dvij_z = np.linalg.norm(self.URandSpan(3,i)+self.URandSpan(3,j))
+                    max_dvij_x = np.linalg.norm(self.URandSpan[0,i]+self.URandSpan[0,j])
+                    max_dvij_y = np.linalg.norm(self.URandSpan[1,i]+self.URandSpan[1,j])
+                    max_dvij_z = np.linalg.norm(self.URandSpan[2,i]+self.URandSpan[2,j])
 
-                    max_dxij_x = np.linalg.norm(x(1,i)-x(1,j)) + np.linalg.norm(self.XRandSpan(1,i)+self.XRandSpan(1,j))
-                    max_dxij_y = np.linalg.norm(x(2,i)-x(2,j)) + np.linalg.norm(self.XRandSpan(2,i)+self.XRandSpan(2,j))
-                    max_dxij_z = np.linalg.norm(x(3,i)-x(3,j)) + np.linalg.norm(self.XRandSpan(3,i)+self.XRandSpan(3,j))
+                    max_dxij_x = np.linalg.norm(x[0,i]-x[0,j]) + np.linalg.norm(self.XRandSpan[0,i]+self.XRandSpan[0,j])
+                    max_dxij_y = np.linalg.norm(x[1,i]-x[1,j]) + np.linalg.norm(self.XRandSpan[1,i]+self.XRandSpan[1,j])
+                    max_dxij_z = np.linalg.norm(x[2,i]-x[2,j]) + np.linalg.norm(self.XRandSpan[2,i]+self.XRandSpan[2,j])
                     
                     BB_x = -self.safety_radius**2-2/self.gamma*max_dvij_x*max_dxij_x
                     BB_y = -self.safety_radius**2-2/self.gamma*max_dvij_y*max_dxij_y
                     BB_z = -self.safety_radius**2-2/self.gamma*max_dvij_z*max_dxij_z
                     
-                    [b2_x, b1_x, sigma] = trap_cdf_inv(self.XRandSpan(1,i), self.XRandSpan(1,j), x(1,i)-x(1,j), self.Confidence)
-                    [b2_y, b1_y, sigma] = trap_cdf_inv(self.XRandSpan(2,i), self.XRandSpan(2,j), x(2,i)-x(2,j), self.Confidence)
-                    [b2_z, b1_z, sigma] = trap_cdf_inv(self.XRandSpan(3,i), self.XRandSpan(3,j), x(3,i)-x(3,j), self.Confidence)
+                    [b2_x, b1_x, sigma] = trap_cdf_inv(self.XRandSpan[0,i], self.XRandSpan[0,j], x[0,i]-x[0,j], self.Confidence)
+                    [b2_y, b1_y, sigma] = trap_cdf_inv(self.XRandSpan[1,i], self.XRandSpan[1,j], x[1,i]-x[1,j], self.Confidence)
+                    [b2_z, b1_z, sigma] = trap_cdf_inv(self.XRandSpan[2,i], self.XRandSpan[2,j], x[2,i]-x[2,j], self.Confidence)
                     
                     # for x
                     #ratio_x = np.sqrt((self.XRandSpan(1,i)+self.XRandSpan(1,j))**2+(self.XRandSpan(2,i)+self.XRandSpan(2,j))**2)/(self.XRandSpan(1,i)+self.XRandSpan(1,j))
@@ -234,38 +235,38 @@ class PrCBF_dec():
                                 np.linalg.norm(y_vec)/self.gamma - 2*np.linalg.norm(velz_vec)* \
                                 np.linalg.norm(z_vec)/self.gamma
 
-                    # Constraints between robots and obstacles
-                    if j<(N-len(self.obs_robot_idx_set))+1:
-                        A[2*count-1, (3*i-1):(3*i)] = -2*e_vec
-                        A[2*count, (3*j-1):(3*j)] =  2*e_vec
+                    # Constraints between robots
+                    if j<(N-len(self.obs_robot_idx_set)):
+                        A[2*count, (3*i):(3*i + 3)] = -2*e_vec
+                        A[2*count + 1, (3*j):(3*j + 3)] =  2*e_vec
                         h = base_h
 
-                        b[(2*count-1):(2*count)] = 1/2*self.gamma*h #**3
+                        b[(2*count):(2*count+2)] = 1/2*self.gamma*h #**3
 
-                    # Inter-robot constraints
+                    # Obstacle constraints
                     else:
-                        A[2*count-1, (2*i-1):(2*i)] = -2*e_vec
+                        A[2*count, (3*i):(3*i + 3)] = -2*e_vec
                         #     A(2*count, (2*j-1):(2*j)) =  2*([b_x;b_y])'
-                        h = -2*e_vec.T @ dxi[:,j]/self.gamma + base_h
+                        h = -2*e_vec @ dxi[:,j]/self.gamma + base_h
 
-                        b[(2*count-1)] = self.gamma*h #**3                    
+                        b[(2*count)] = self.gamma*h #**3                    
                     
                     count += 1
             
             #Solve QP program generated earlier
-            vhat = np.reshape(dxi,(2*N,1))
-            H = 2*np.eye(2*N)
+            vhat = np.reshape(dxi,(3*N,1))
+            H = 2*np.eye(3*N)
             f = -2*vhat
             
-            vnew = quadprog(H, f, A, b, opts=self.opts)
+            vnew = quadprog(H, f, A, b, options=self.opts)
             
             #Set robot velocities to new velocities
             if len(vnew) == 0: # if no solution exists, then iteratively set u_i=0 from i = 1,..N, until solution found
                 loop_flag = True
                 start_i += 1
             else:
-                dx = np.reshape(vnew, (2, N))
+                dx = np.reshape(vnew, (3, N))
                 loop_flag = False
-                dx[:,:start_i] = np.zeros(2,start_i)
+                dx[:, :start_i] = np.zeros((3, start_i))
 
         return dx

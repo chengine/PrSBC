@@ -1,4 +1,3 @@
-import torch
 import numpy as np
 from scipy.integrate import odeint
 
@@ -9,15 +8,16 @@ class Dynamics():
         self.dt = dt
         self.time = 0
 
-    def step(self, effort, return_as_tensor=False):
+    def step(self, effort):
+        '''
         tspan = np.linspace(self.time, self.time+self.dt, num=10)
         sol = odeint(self.dynamics, self.x0, tspan, args=(effort,))
         self.x0 = sol[-1, :]
         self.time += self.dt
-        if return_as_tensor is True:
-            return torch.tensor(self.x0)
-        else:
-            return self.x0
+        '''
+        self.x0 += effort*self.dt
+        
+        return self.x0
 
     def get_state(self):
         return self.x0
