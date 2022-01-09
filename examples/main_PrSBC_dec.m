@@ -195,7 +195,7 @@ while timer_count< timer_to_stop  %(~init_checker(x(1:2,:), goal_condition)) %
     
 %     dxi = controller(x(1:2, :), initial_conditions(1:2, :));
     dxi = controller(x_observe(1:2, :), goal_condition);
-    
+  
     dxi_r = si_barrier_certificate(dxi, x_observe(1:2, :), 'XRandSpan', [x_rand_span_x;x_rand_span_y],'URandSpan', v_rand_span);
 %     fval_r
     

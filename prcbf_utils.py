@@ -18,9 +18,9 @@ def quadprog(P, q, G=None, h=None, options=None):
         G, h = matrix(G), matrix(h)
 
     if options is None:
-        sol = solvers.qp(P, q, G, h)
+        sol = solvers.qp(P, q, G, h, None, None)
     else:
-        sol = solvers.qp(P, q, G, h, options=options)
+        sol = solvers.qp(P, q, G, h, None, None, options=options)
 
     return np.array(sol['x']).ravel()
 
@@ -128,7 +128,7 @@ def find_inv_cdf(b2, b1, dir):
 #Last modified: 5/25/2020
 # Implementation
 class PrCBF_dec():
-    def __init__(self, opts, URandSpan=0, XRandSpan=0, obs_robot_idx_set=[], safety_radius=0.1, Confidence=1., gamma=1e4) -> None:
+    def __init__(self, opts=None, URandSpan=0, XRandSpan=0, obs_robot_idx_set=[], safety_radius=0.1, Confidence=1., gamma=1e4) -> None:
         pass
         self.URandSpan = URandSpan
         self.XRandSpan = XRandSpan
@@ -137,6 +137,8 @@ class PrCBF_dec():
         self.Confidence = Confidence
         self.gamma = gamma
         self.opts = opts
+
+        self.d = 2
 
     def barrier_certificate(self, dxi, x):
     #BARRIERCERTIFICATE Wraps single-integrator dynamics in safety barrier
@@ -170,7 +172,7 @@ class PrCBF_dec():
         if (len(self.URandSpan)==1) and (self.URandSpan==0):
             self.URandSpan = np.zeros(2,N)
         
-        x = x[:3, :]
+        x = x[:2, :]
         #robot_idx_set = setdiff(1:N, obs_robot_idx_set)
         # N = N_bot + N_bot_obs and assume bot: 1:N_bot and bot_obs: (N_bot+1):N
         
@@ -184,7 +186,7 @@ class PrCBF_dec():
         loop_flag = True # initialize
         while loop_flag:
             loop_flag = False
-            A = np.zeros((num_constraints, 3*N))
+            A = np.zeros((num_constraints, 2*N))
             b = np.zeros((num_constraints, 1))
             count = 0
         
@@ -193,19 +195,19 @@ class PrCBF_dec():
                     
                     max_dvij_x = np.linalg.norm(self.URandSpan[0,i]+self.URandSpan[0,j])
                     max_dvij_y = np.linalg.norm(self.URandSpan[1,i]+self.URandSpan[1,j])
-                    max_dvij_z = np.linalg.norm(self.URandSpan[2,i]+self.URandSpan[2,j])
+                    #max_dvij_z = np.linalg.norm(self.URandSpan[2,i]+self.URandSpan[2,j])
 
                     max_dxij_x = np.linalg.norm(x[0,i]-x[0,j]) + np.linalg.norm(self.XRandSpan[0,i]+self.XRandSpan[0,j])
                     max_dxij_y = np.linalg.norm(x[1,i]-x[1,j]) + np.linalg.norm(self.XRandSpan[1,i]+self.XRandSpan[1,j])
-                    max_dxij_z = np.linalg.norm(x[2,i]-x[2,j]) + np.linalg.norm(self.XRandSpan[2,i]+self.XRandSpan[2,j])
+                    #max_dxij_z = np.linalg.norm(x[2,i]-x[2,j]) + np.linalg.norm(self.XRandSpan[2,i]+self.XRandSpan[2,j])
                     
                     BB_x = -self.safety_radius**2-2/self.gamma*max_dvij_x*max_dxij_x
                     BB_y = -self.safety_radius**2-2/self.gamma*max_dvij_y*max_dxij_y
-                    BB_z = -self.safety_radius**2-2/self.gamma*max_dvij_z*max_dxij_z
+                    #BB_z = -self.safety_radius**2-2/self.gamma*max_dvij_z*max_dxij_z
                     
                     [b2_x, b1_x, sigma] = trap_cdf_inv(self.XRandSpan[0,i], self.XRandSpan[0,j], x[0,i]-x[0,j], self.Confidence)
                     [b2_y, b1_y, sigma] = trap_cdf_inv(self.XRandSpan[1,i], self.XRandSpan[1,j], x[1,i]-x[1,j], self.Confidence)
-                    [b2_z, b1_z, sigma] = trap_cdf_inv(self.XRandSpan[2,i], self.XRandSpan[2,j], x[2,i]-x[2,j], self.Confidence)
+                    #[b2_z, b1_z, sigma] = trap_cdf_inv(self.XRandSpan[2,i], self.XRandSpan[2,j], x[2,i]-x[2,j], self.Confidence)
                     
                     # for x
                     #ratio_x = np.sqrt((self.XRandSpan(1,i)+self.XRandSpan(1,j))**2+(self.XRandSpan(2,i)+self.XRandSpan(2,j))**2)/(self.XRandSpan(1,i)+self.XRandSpan(1,j))
@@ -218,34 +220,33 @@ class PrCBF_dec():
 
                     b_y = find_inv_cdf(b2_y, b1_y, 'y')
 
-                    b_z = find_inv_cdf(b2_z, b1_z, 'z')
+                    #b_z = find_inv_cdf(b2_z, b1_z, 'z')
                                 
-                    e_vec = np.array([b_x, b_y, b_z])
+                    e_vec = np.array([b_x, b_y])
 
                     velx_vec = np.array([max_dvij_x, 0, 0])
                     vely_vec = np.array([0, max_dvij_y, 0])
-                    velz_vec = np.array([0, 0, max_dvij_z])
+                    #velz_vec = np.array([0, 0, max_dvij_z])
 
                     x_vec = np.array([max_dxij_x, 0, 0])
                     y_vec = np.array([0, max_dxij_y, 0])
-                    z_vec = np.array([0, 0, max_dxij_z])
+                    #z_vec = np.array([0, 0, max_dxij_z])
 
-                    base_h = np.linalg.norm(e_vec)**2-3*self.safety_radius**2-2*np.linalg.norm(velx_vec)* \
-                                np.linalg.norm(x_vec)/self.gamma-2*np.linalg.norm(vely_vec)* \
-                                np.linalg.norm(y_vec)/self.gamma - 2*np.linalg.norm(velz_vec)* \
-                                np.linalg.norm(z_vec)/self.gamma
+                    base_h = np.linalg.norm(e_vec)**2-self.d*self.safety_radius**2- \
+                            2*np.linalg.norm(velx_vec)*np.linalg.norm(x_vec)/self.gamma- \
+                            2*np.linalg.norm(vely_vec)* np.linalg.norm(y_vec)/self.gamma
 
                     # Constraints between robots
                     if j<(N-len(self.obs_robot_idx_set)):
-                        A[2*count, (3*i):(3*i + 3)] = -2*e_vec
-                        A[2*count + 1, (3*j):(3*j + 3)] =  2*e_vec
+                        A[2*count, (2*i):(2*i + 2)] = -2*e_vec
+                        A[2*count + 1, (2*j):(2*j + 2)] =  2*e_vec
                         h = base_h
 
                         b[(2*count):(2*count+2)] = 1/2*self.gamma*h #**3
 
                     # Obstacle constraints
                     else:
-                        A[2*count, (3*i):(3*i + 3)] = -2*e_vec
+                        A[2*count, (2*i):(2*i + 2)] = -2*e_vec
                         #     A(2*count, (2*j-1):(2*j)) =  2*([b_x;b_y])'
                         h = -2*e_vec @ dxi[:,j]/self.gamma + base_h
 
@@ -255,9 +256,14 @@ class PrCBF_dec():
             
             #Solve QP program generated earlier
             vhat = np.reshape(dxi.T,-1)
-            H = 2*np.eye(3*N)
+            H = 2*np.eye(2*N)
             f = -2*vhat
             
+            #print('H', H)
+            #print('f', f)
+            #print('A', A)
+            #print('b', b)
+
             vnew = quadprog(H, f, A, b, options=self.opts)
             
             #Set robot velocities to new velocities
@@ -265,8 +271,8 @@ class PrCBF_dec():
                 loop_flag = True
                 start_i += 1
             else:
-                dx = np.reshape(vnew, (N, 3)).T
+                dx = np.reshape(vnew, (N, 2)).T
                 loop_flag = False
-                dx[:, :start_i] = np.zeros((3, start_i))
+                dx[:, :start_i] = np.zeros((2, start_i))
 
         return dx

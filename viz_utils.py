@@ -55,13 +55,14 @@ def draw_agents(ax, positions, sizes, colors, r=None):
         #draw_point(ax, p, color=c)
 
 class Viz():
-    def __init__(self, sizes, colors, radius, plt_ranges, dir) -> None:
+    def __init__(self, sizes, colors, radius, dir, plt_ranges=None) -> None:
         self.sizes = sizes
         self.colors = colors
         self.radius = radius
         self.dir = dir
         self.ranges = plt_ranges
 
+        #plt.ion()
         self.fig = plt.figure()
         self.ax = plt.axes(projection='3d')
 
@@ -69,13 +70,15 @@ class Viz():
 
     def reset(self):
         self.ax.clear()
-        self.ax.set_xlim(self.ranges[0])
-        self.ax.set_ylim(self.ranges[1])
-        self.ax.set_zlim(self.ranges[2])
+        if self.ranges is not None:
+            self.ax.set_xlim(self.ranges[0])
+            self.ax.set_ylim(self.ranges[1])
+            self.ax.set_zlim(self.ranges[2])
     
     def plot_agents(self, positions, save=False):
         self.reset()
         draw_agents(self.ax, positions, self.sizes, self.colors, r=self.radius)
+        #plt.pause(0.05)
         if save is True:
             self.save_fig()
 

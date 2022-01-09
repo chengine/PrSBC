@@ -8,6 +8,7 @@ from agent import Dynamics
 from planner import Planner
 from viz_utils import Viz
 from PrCBF_utils import PrCBF_dec
+#from prcbf_utils import PrCBF_dec
 import random
 
 np.random.seed(0)
@@ -17,40 +18,51 @@ def run():
     #TODO: Make Configurations as a separate file
     #Number of Agents
     N = 7
-    Confidence = 0.8
+    Confidence = 0.9
     safety_radius = 0.2
 
     #Maximum noise (absolute) added to position for each agent
-    x_rand_span_x = 0.02*np.random.rand(1, N)
-    x_rand_span_y = 0.02*np.random.rand(1, N)
-    x_rand_span_z = 0.01*np.random.rand(1, N)
+    #x_rand_span_x = 0.02*np.random.rand(1, N)
+    #x_rand_span_y = 0.02*np.random.rand(1, N)
+    #x_rand_span_z = 0.01*np.random.rand(1, N)
+
+    x_rand_span_x = 0.02*np.random.randint(3, 4, size=(1, N))
+    x_rand_span_y = 0.02*np.random.randint(1, 4, size=(1, N))
+    x_rand_span_z = 0.01*np.random.randint(1, 3, size=(1, N))
 
     v_rand_span = 0.005*np.ones((3, N))
 
-    x0 = np.array([[-1.3, 2.4, -1.1, 1.7, 1.6, -1.3, 0.5],\
-        [0, -0.2, 1.7, -1.7, 1.2, -1.8, -2],\
+    x0 = np.array([[-1.3, 2.4, -1.1, 1.7, 1.6, -1.3, 0.5],
+        [0, -0.2, 1.7, -1.7, 1.2, -1.8, -2],
         [0, 0, 0, 0, 0, 0, 0]])
 
-    goal = np.hstack((x0[:,[2, 1, 4, 3, 6, 5]], np.array([0.5, 2, 0]).reshape(-1, 1)))
+    #x0 = x0[:2, :]
 
-    #obs_robot_idx = np.array([6, 7])
-    obs_robot_idx = []
+    goal = np.hstack((x0[:,[1, 0, 3, 2, 5, 4]], np.array([0.5, 2, 0]).reshape(-1, 1)))
 
-    dt = 0.05
+    #goal = goal[:2, :]
+
+    #print(goal, x0)
+
+    obs_robot_idx = np.array([6, 7])
+    #obs_robot_idx = []
+
+    dt = 0.1
     iter_final = 3000
     path = 'cbf_logs/'
 
     #Initialize Planner
-    scale = 0.05
+    scale = 0.1
     planner = Planner(x0, goal, scale=scale)
 
     #Initialize Dynamics
     dynamics = Dynamics(x0, dt)
 
     opts = {'show_progress': False}
+    #XRandSpan = np.vstack((x_rand_span_x, x_rand_span_y, x_rand_span_z))
     XRandSpan = np.vstack((x_rand_span_x, x_rand_span_y, x_rand_span_z))
     URandSpan = v_rand_span
-    gamma = 1e4
+    gamma = 1e2
 
     #Initialize Barrier Certificate
     prcbf = PrCBF_dec(opts, URandSpan=URandSpan, XRandSpan=XRandSpan, obs_robot_idx_set=obs_robot_idx, \
@@ -65,11 +77,13 @@ def run():
     colors = colors.tolist()
     colors = [tuple(item) for item in colors]
 
-    plt_ranges = [(-4, 4), (-4, 4), (-1., 1.)]
+    #plt_ranges = [(-4, 4), (-4, 4), (-1., 1.)]
 
-    viz = Viz(XRandSpan.T, colors, safety_radius, plt_ranges, dir)
+    viz = Viz(XRandSpan.T, colors, safety_radius, dir)
 
     traj = x0
+
+    inter_dists = []
 
     for iter in tqdm.trange(iter_final):
 
@@ -83,15 +97,25 @@ def run():
         effort = prcbf.barrier_certificate(unsafe_cntrl, pos)
 
         #Add noise to velocities
+        #effort = unsafe_cntrl
         vel_error = 2*(np.random.rand(3,N)-0.5)
         effort += v_rand_span*vel_error
 
         current_state = dynamics.step(effort)
         #traj = np.vstack((traj, current_state))
 
-        if iter % 25 == 0:
-            viz.plot_agents(current_state.T, save=True)
+        inter_dists.append(dynamics.get_inter_robot_dist(find_min=True))
 
+        if iter % 25 == 0:
+            print(current_state.T)
+            viz.plot_agents(current_state.T, save=True)
+    #plt.show()
+    print(goal.T)
+
+    inter_dists = np.stack(inter_dists)
+    min_inter_dists = np.amin(inter_dists, axis=0)
+
+    print(min_inter_dists)
     '''
     fig = plt.figure()
     ax = plt.axes(projection='3d')

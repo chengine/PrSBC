@@ -144,7 +144,6 @@ si_barrier_certificate = @barrier_certificate;
                         b_y = b1_y;warning('no uncertainty or sigma = 0.5 on y');
                     end
                     
-                    
                     if j<(N-numel(obs_robot_idx_set))+1
                         A(2*count-1, (2*i-1):(2*i)) = -2*([b_x;b_y]);
                         A(2*count, (2*j-1):(2*j)) =  2*([b_x;b_y])';
@@ -167,6 +166,11 @@ si_barrier_certificate = @barrier_certificate;
             H = 2*eye(2*N);
             f = -2*vhat;
             
+            disp(H)
+            disp(f)
+            disp(A)
+            disp(b)
+
             [vnew, fval] = quadprog(sparse(H), double(f), A, b, [],[], [], [], [], opts);
             
             %Set robot velocities to new velocities

@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.integrate import odeint
+from scipy.spatial import distance
 
 class Dynamics():
     def __init__(self, x0, dt) -> None:
@@ -30,7 +31,16 @@ class Dynamics():
         f = np.zeros((3,))
         g = np.eye(3)
         return f, g
-        
+
+    def get_inter_robot_dist(self, find_min=False):
+        inter_dist = distance.cdist(self.x0.T, self.x0.T, 'euclidean')
+        if find_min is True:
+            m = inter_dist.shape[0]
+            strided = np.lib.stride_tricks.as_strided
+            s0,s1 = inter_dist.strides
+            inter_dist = strided(inter_dist.ravel()[1:], shape=(m-1,m), strides=(s0+s1,s1)).reshape(m,-1)
+            inter_dist = np.amin(inter_dist, axis=1)
+        return inter_dist
     '''
     def dynamics(x, t, effort):
         delx = x[3:]

@@ -16,7 +16,8 @@ class Planner():
         self.theta = 0.
 
     def get_action(self, pos):
-        thrust = self.scale*(self.goal - pos)/np.linalg.norm(self.goal - pos)
+        #thrust = self.scale*(self.goal - pos)/np.linalg.norm(self.goal - pos, axis=0)
+        thrust = self.scale*(self.goal - pos)
         # thrust = self.scale*(rotate(self.theta)@self.goal - pos)/np.linalg.norm(rotate(self.theta)@self.goal - pos)
         # if np.linalg.norm(pos-self.x0) <= self.threshold:
         #    #thrust += np.random.normal(0., 0.025, size=(3,))
