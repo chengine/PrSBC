@@ -1,5 +1,4 @@
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 from itertools import product, combinations
 
@@ -86,6 +85,7 @@ class Viz():
         plt.savefig(self.dir + f'/{self.iter}.png')
         self.iter += 1
 
+'''
 if __name__ == "__main__":
     positions = np.array([[-3,5,-2],[1,7,1]])
     sizes = np.array([[4,5,3], [3,3,7]])
@@ -94,11 +94,6 @@ if __name__ == "__main__":
     fig = plt.figure()
     ax = plt.axes(projection='3d')
 
-    '''
-    draw_cubes(ax, positions, sizes, colors)
-    draw_sphere(ax, positions[0], sizes[0]/2)
-    draw_point(ax, positions[0])
-    '''
-
     draw_agents(ax, positions, sizes, colors)
     plt.show()
+    '''

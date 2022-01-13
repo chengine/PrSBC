@@ -1,6 +1,7 @@
 import numpy as np
 import math
 from cvxopt import matrix, solvers
+import cvxpy as cp
 from scipy.special import comb
 
 ### Utiliy Functions
@@ -128,14 +129,14 @@ def find_inv_cdf(b2, b1, dir):
 #Last modified: 5/25/2020
 # Implementation
 class PrCBF_dec():
-    def __init__(self, opts, URandSpan=0, XRandSpan=0, obs_robot_idx_set=[], safety_radius=0.1, Confidence=1., gamma=1e4) -> None:
-        pass
+    def __init__(self, opts, URandSpan=0, XRandSpan=0, obs_robot_idx_set=[], safety_radius=0.1, Confidence=1., gamma=1e4, max_v=None) -> None:
         self.URandSpan = URandSpan
         self.XRandSpan = XRandSpan
         self.obs_robot_idx_set = obs_robot_idx_set
         self.safety_radius = safety_radius
         self.Confidence = Confidence
         self.gamma = gamma
+        self.max_v = max_v
         self.opts = opts
 
     def barrier_certificate(self, dxi, x):
@@ -185,7 +186,7 @@ class PrCBF_dec():
         while loop_flag:
             loop_flag = False
             A = np.zeros((num_constraints, 3*N))
-            b = np.zeros((num_constraints, 1))
+            b = np.zeros((num_constraints))
             count = 0
         
             for i in range(start_i,(N-len(self.obs_robot_idx_set))):
@@ -258,7 +259,20 @@ class PrCBF_dec():
             H = 2*np.eye(3*N)
             f = -2*vhat
             
-            vnew = quadprog(H, f, A, b, options=self.opts)
+            if self.max_v is None:
+                vnew = quadprog(H, f, A, b, options=self.opts)
+            else:
+                safe_cntrl = cp.Variable(3*N)
+                cost = cp.Minimize((1/2)*cp.quad_form(safe_cntrl, H) + f.T @ safe_cntrl)
+                constraints = [A @ safe_cntrl <= b]
+                for k in range(N):
+                    constraints += [cp.SOC(self.max_v, safe_cntrl[3*k: 3*k+3])]
+                prob = cp.Problem(cost, constraints)
+                prob.solve()
+                vnew = safe_cntrl.value
+
+                if vnew is None:
+                    vnew = []
             
             #Set robot velocities to new velocities
             if len(vnew) == 0: # if no solution exists, then iteratively set u_i=0 from i = 1,..N, until solution found

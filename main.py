@@ -6,7 +6,7 @@ import json
 import matplotlib.pyplot as plt
 from agent import Dynamics
 from planner import Planner
-from viz_utils import Viz
+
 from PrCBF_utils import PrCBF_dec
 #from prcbf_utils import PrCBF_dec
 import random
@@ -44,30 +44,25 @@ def run():
 
     #print(goal, x0)
 
-    obs_robot_idx = np.array([6, 7])
-    #obs_robot_idx = []
+    #obs_robot_idx = np.array([6, 7])
+    obs_robot_idx = []
 
     dt = 0.1
-    iter_final = 3000
+    iter_final = 500
     path = 'cbf_logs/'
 
     #Initialize Planner
     scale = 0.1
     planner = Planner(x0, goal, scale=scale)
 
-    #Initialize Dynamics
-    dynamics = Dynamics(x0, dt)
-
     opts = {'show_progress': False}
     #XRandSpan = np.vstack((x_rand_span_x, x_rand_span_y, x_rand_span_z))
     XRandSpan = np.vstack((x_rand_span_x, x_rand_span_y, x_rand_span_z))
     URandSpan = v_rand_span
-    gamma = 1e2
+    gamma = 1e1
+    max_v = 2.
 
-    #Initialize Barrier Certificate
-    prcbf = PrCBF_dec(opts, URandSpan=URandSpan, XRandSpan=XRandSpan, obs_robot_idx_set=obs_robot_idx, \
-        safety_radius=2*safety_radius, Confidence=Confidence, gamma=gamma)
-
+    #Initialize Dynamics
     # Initialize visualization
     dir = './logs'
     r = np.random.rand(N, 1)
@@ -78,8 +73,11 @@ def run():
     colors = [tuple(item) for item in colors]
 
     #plt_ranges = [(-4, 4), (-4, 4), (-1., 1.)]
+    dynamics = Dynamics(x0, dt, XRandSpan.T, colors, safety_radius, dir)
 
-    viz = Viz(XRandSpan.T, colors, safety_radius, dir)
+    #Initialize Barrier Certificate
+    prcbf = PrCBF_dec(opts, URandSpan=URandSpan, XRandSpan=XRandSpan, obs_robot_idx_set=obs_robot_idx, \
+        safety_radius=2*safety_radius, Confidence=Confidence, gamma=gamma, max_v=max_v)
 
     traj = x0
 
@@ -101,6 +99,10 @@ def run():
         vel_error = 2*(np.random.rand(3,N)-0.5)
         effort += v_rand_span*vel_error
 
+        #effort[:, obs_robot_idx-1] = unsafe_cntrl[:, obs_robot_idx-1]
+
+        #print(effort)
+
         current_state = dynamics.step(effort)
         #traj = np.vstack((traj, current_state))
 
@@ -108,27 +110,29 @@ def run():
 
         if iter % 25 == 0:
             print(current_state.T)
-            viz.plot_agents(current_state.T, save=True)
+            dynamics.plot_agents(current_state.T, save=True)
+
     #plt.show()
     print(goal.T)
 
     inter_dists = np.stack(inter_dists)
     min_inter_dists = np.amin(inter_dists, axis=0)
+    min_inter_dists_in_time = np.amin(inter_dists, axis=1)
 
     print(min_inter_dists)
+
+    fig = plt.figure(1)
+    plt.plot(*range(min_inter_dists_in_time.shape[0]), min_inter_dists_in_time)
+    plt.ylim([0, 3])
+    label = [f'Robot {i+1}' for i in range(N)]
+    plt.axhline(y=2*safety_radius, color='black', linestyle='-')
+    plt.ylabel('Inter-robot distance')
+    plt.xlabel('Iteration')
+    #plt.legend(label)
+    plt.savefig(dir + f'/min_dist.png')
+    plt.show()
+
     '''
-    fig = plt.figure()
-    ax = plt.axes(projection='3d')
-
-    print('Final Position', dynamics.get_state())
-    ax.plot3D(traj[:, 0], traj[:, 1], traj[:, 2], 'blue')
-    ax.set_xlabel('x')
-    ax.set_ylabel('y')
-    ax.set_zlabel('z')
-
-    plt.savefig('cbf_logs/trajectory.png')
-    plt.clf()
-
     meta = traj.tolist()
     with open(path + 'traj.json', 'w') as f:
         json.dump(meta, f)
